@@ -5,19 +5,28 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/prisma/prismaClient"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator prismaClassGenerator {
+  provider               = "prisma-class-generator"
+  useSwagger             = "false"
+  dryRun                 = "false"
+  separateRelationFields = "true"
+  output                 = "../src/prisma/schema"
 }
 
 model Account {
   accountId            Int           @id @default(autoincrement())
   personId             Int
-  balance              BigInt        @default(0)
-  dailyWithdrawalLimit BigInt
+  balance              Int           @default(0)
+  dailyWithdrawalLimit Int
   activeFlag           Boolean       @default(true)
   accountType          Int
   createDate           DateTime      @default(now())
@@ -40,7 +49,7 @@ model Person {
 model Transaction {
   transactionId   Int      @id @default(autoincrement())
   accountId       Int
-  value           BigInt
+  value           Int
   transactionDate DateTime @default(now())
   idempotencyKey  String?  @unique
   type            Int
