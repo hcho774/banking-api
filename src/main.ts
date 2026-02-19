@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import compression from 'compression';
+import { VersioningType } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -20,12 +22,16 @@ async function bootstrap() {
       },
     }),
   );
-
   app.enableCors({
     credentials: true,
     origin: app.get(ConfigService).get('CORS_ORIGIN', '*'),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     optionsSuccessStatus: 200,
+  });
+  app.use(compression({ encodings: ['gzip', 'deflate'] }));
+  app.enableVersioning({
+    type: VersioningType.HEADER,
+    header: 'version',
   });
 
   await app.listen(app.get(ConfigService).getOrThrow('PORT'));
