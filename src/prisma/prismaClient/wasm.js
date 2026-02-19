@@ -151,7 +151,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/hyunsungcho/Documents/Development/banking-api/src/prisma/prismaClient",
+      "value": "/Users/hyunsungcho/Desktop/development/banking-api/src/prisma/prismaClient",
       "fromEnvVar": null
     },
     "config": {
@@ -160,12 +160,12 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "darwin",
         "native": true
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/hyunsungcho/Documents/Development/banking-api/prisma/schema.prisma",
+    "sourceFilePath": "/Users/hyunsungcho/Desktop/development/banking-api/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -179,7 +179,7 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": false,
+  "postinstall": true,
   "inlineDatasources": {
     "db": {
       "url": {
