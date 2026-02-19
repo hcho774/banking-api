@@ -5,10 +5,12 @@ import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import compression from 'compression';
 import { ClassSerializerInterceptor, VersioningType } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useLogger(app.get(Logger));
+  app.setGlobalPrefix('api', { exclude: ['health'] });
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -32,8 +34,19 @@ async function bootstrap() {
   app.enableVersioning({
     type: VersioningType.HEADER,
     header: 'version',
+    defaultVersion: '1',
   });
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  if (app.get(ConfigService).get('NODE_ENV') !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Banking API')
+      .setDescription('Production-grade Banking REST API')
+      .setVersion('1.0')
+      .addApiKey({ type: 'apiKey', name: 'apiKey', in: 'header' }, 'apiKey')
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+  }
   app.enableShutdownHooks();
 
   await app.listen(app.get(ConfigService).getOrThrow('PORT'));
