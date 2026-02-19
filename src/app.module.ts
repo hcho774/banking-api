@@ -15,6 +15,24 @@ import { AppService } from './app.service';
 
         return {
           pinoHttp: {
+            genReqId: (req) =>
+              (req.headers['x-request-id'] as string) || crypto.randomUUID(),
+            redact: {
+              paths: [
+                'req.headers.apikey',
+                'req.headers.authorization',
+                'req.body.password',
+              ],
+              remove: true,
+            },
+            serializers: {
+              err: (err) => ({
+                id: err.id,
+                type: err.type,
+                message: err.message,
+                stack: err.stack,
+              }),
+            },
             transport: isProduction
               ? undefined
               : {
@@ -30,7 +48,7 @@ import { AppService } from './app.service';
     }),
     ...ServiceModules,
   ],
-  controllers: [],
-  providers: [],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
