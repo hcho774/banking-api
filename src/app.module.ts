@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { ServiceModules } from './services';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { APP_GUARD } from '@nestjs/core';
         limit: parseInt(process.env.THROTTLE_LIMIT || '30', 10),
       },
     ]),
+    HealthModule,
     ...ServiceModules,
   ],
   controllers: [],
