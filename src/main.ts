@@ -21,6 +21,13 @@ async function bootstrap() {
     }),
   );
 
+  app.enableCors({
+    credentials: true,
+    origin: app.get(ConfigService).get('CORS_ORIGIN', '*'),
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    optionsSuccessStatus: 200,
+  });
+
   await app.listen(app.get(ConfigService).getOrThrow('PORT'));
 }
 bootstrap();
