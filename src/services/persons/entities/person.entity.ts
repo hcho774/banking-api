@@ -1,4 +1,4 @@
-import { Person as PrismaPerson } from '../../prisma/schema/person';
+import { Person as PrismaPerson } from '../../../prisma/schema/person';
 import { Expose } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 

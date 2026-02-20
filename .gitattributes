@@ -1,5 +1,0 @@
-# Prisma generated client — GitHub linguist에서 제외
-src/prisma/prismaClient/** linguist-generated
-
-# ESLint config — GitHub linguist에서 제외
-eslint.config.mjs linguist-generated
