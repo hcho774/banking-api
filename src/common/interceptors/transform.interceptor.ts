@@ -10,7 +10,8 @@ import { Observable, map } from 'rxjs';
 export class TransformInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    const requestId = request.headers['x-request-id'] as string; // From pino-http
+    const requestId =
+      request.id || (request.headers['x-request-id'] as string) || null;
 
     return next.handle().pipe(
       map((data) => {
