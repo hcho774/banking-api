@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import compression from 'compression';
-import { VersioningType } from '@nestjs/common';
+import { VERSION_NEUTRAL, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -34,7 +34,7 @@ async function bootstrap() {
   app.enableVersioning({
     type: VersioningType.HEADER,
     header: 'version',
-    defaultVersion: '1',
+    defaultVersion: ['1', VERSION_NEUTRAL],
   });
   if (app.get(ConfigService).get('NODE_ENV') !== 'production') {
     const config = new DocumentBuilder()
