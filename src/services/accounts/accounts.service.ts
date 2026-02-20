@@ -16,10 +16,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { PersonStatus } from 'src/common/enums/person-status.enum';
 import { TransactionType } from 'src/common/enums/transaction-type.enum';
 import { TRANSACTION_OPTIONS } from 'src/common/constants/transaction.constants';
-import { Account } from 'src/prisma/schema/account';
-import { Transaction } from 'src/prisma/schema/transaction';
+import { Account, Prisma, Transaction } from 'src/prisma/prismaClient';
 import { PaginatedResult } from 'src/common/interfaces/paginated-result.interface';
-import { Prisma } from 'src/prisma/prismaClient';
 
 @Injectable()
 export class AccountsService {
