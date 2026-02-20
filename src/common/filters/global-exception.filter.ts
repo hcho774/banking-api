@@ -17,26 +17,52 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const statusCode =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message = 'Internal server error';
+    let details: any = undefined;
 
-    const message =
-      exception instanceof HttpException
-        ? exception.message
-        : 'Internal server error';
+    // NestJS HttpException (includes ValidationPipe errors)
+    if (exception instanceof HttpException) {
+      statusCode = exception.getStatus();
+      message = exception.message;
 
-    const errorResponse =
-      exception instanceof HttpException ? exception.getResponse() : null;
+      const errorResponse = exception.getResponse();
+      if (
+        typeof errorResponse === 'object' &&
+        errorResponse !== null &&
+        'message' in errorResponse
+      ) {
+        const msgs = (errorResponse as any).message;
+        if (Array.isArray(msgs)) {
+          details = msgs;
+        }
+      }
+    }
 
-    // Validation errors from ValidationPipe
-    const validationErrors =
-      typeof errorResponse === 'object' &&
-      errorResponse !== null &&
-      'message' in errorResponse
-        ? (errorResponse as any).message
-        : undefined;
+    // Prisma errors (checking by constructor name to avoid import issues)
+    else if (
+      exception instanceof Error &&
+      exception.constructor.name === 'PrismaClientKnownRequestError'
+    ) {
+      const prismaError = exception as any;
+      switch (prismaError.code) {
+        case 'P2002': // Unique constraint
+          statusCode = HttpStatus.CONFLICT;
+          const fields = (prismaError.meta?.target as string[])?.join(', ');
+          message = `Unique constraint violation on: ${fields}`;
+          break;
+        case 'P2025': // Record not found
+          statusCode = HttpStatus.NOT_FOUND;
+          message = 'Record not found';
+          break;
+        case 'P2003': // Foreign key constraint
+          statusCode = HttpStatus.BAD_REQUEST;
+          message = 'Related record not found';
+          break;
+        default:
+          message = `Database error: ${prismaError.code}`;
+      }
+    }
 
     this.logger.error(
       {
@@ -54,9 +80,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         code: HttpStatus[statusCode] || 'UNKNOWN_ERROR',
         message,
         statusCode,
-        ...(Array.isArray(validationErrors) && {
-          details: validationErrors,
-        }),
+        ...(details && { details }),
       },
       timestamp: new Date().toISOString(),
       requestId:
