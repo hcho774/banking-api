@@ -185,6 +185,28 @@ describe('Banking API (e2e)', () => {
         .expect(404);
     });
 
+    it('GET /api/accounts — should list accounts', () => {
+      return request(app.getHttpServer())
+        .get('/api/accounts')
+        .set('apiKey', API_KEY)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.success).toBe(true);
+          expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+          expect(res.body.meta).toBeDefined();
+        });
+    });
+
+    it('GET /api/accounts/:accountId — should return account detail', () => {
+      return request(app.getHttpServer())
+        .get(`/api/accounts/${accountId}`)
+        .set('apiKey', API_KEY)
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.data.accountId).toBe(accountId);
+        });
+    });
+
     it('GET /api/accounts/:accountId/balance — should return 0 balance', () => {
       return request(app.getHttpServer())
         .get(`/api/accounts/${accountId}/balance`)
