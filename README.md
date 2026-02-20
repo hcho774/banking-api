@@ -38,7 +38,8 @@ A production-grade RESTful Banking API built with NestJS, TypeScript, Prisma, an
 banking-api/
 ├── prisma/
 │   ├── migrations/          # Database migration history
-│   └── schema.prisma        # Prisma schema definition
+│   ├── schema.prisma        # Prisma schema definition
+│   └── seed.ts              # Database seed (sample person + account)
 ├── src/
 │   ├── common/
 │   │   ├── constants/       # Shared constants (transaction options)
@@ -58,8 +59,12 @@ banking-api/
 │   │   └── persons/         # Person module (controller, service, DTOs, entities)
 │   ├── app.module.ts        # Root module
 │   └── main.ts              # Application bootstrap
-├── test/                    # E2E test configuration
-├── docker-compose.yml       # PostgreSQL container
+├── test/
+│   ├── app.e2e-spec.ts      # E2E test suite (22 cases)
+│   └── jest-e2e.json        # E2E Jest configuration
+├── Dockerfile               # Multi-stage production build
+├── .dockerignore             # Docker build context filter
+├── docker-compose.yml       # PostgreSQL + API containers
 └── .env.example             # Environment variable template
 ```
 
