@@ -51,6 +51,60 @@ export class AccountsService {
     return account;
   }
 
+  async findAll(query: PaginationQueryDto) {
+    const { page, limit, skip } = parsePagination(query);
+    const where = { activeFlag: true };
+
+    const [accounts, total] = await Promise.all([
+      this.prisma.account.findMany({ where, skip, take: limit }),
+      this.prisma.account.count({ where }),
+    ]);
+
+    return {
+      items: accounts,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(accountId: string) {
+    return this.findActiveAccount(accountId);
+  }
+
+  async update(accountId: string, updateAccountDto: UpdateAccountDto) {
+    await this.findActiveAccount(accountId);
+    const account = await this.prisma.account.update({
+      where: { accountId },
+      data: updateAccountDto,
+    });
+    return account;
+  }
+
+  async blockAccount(accountId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { accountId },
+    });
+    if (!account) {
+      throw new NotFoundException(`Account with id ${accountId} not found`);
+    }
+    if (!account.activeFlag) {
+      throw new ConflictException('Account is already blocked.');
+    }
+    return this.prisma.account.update({
+      where: { accountId },
+      data: { activeFlag: false },
+    });
+  }
+
+  async getBalance(accountId: string) {
+    const account = await this.findActiveAccount(accountId);
+    return { accountId: account.accountId, balance: account.balance };
+  }
+
   async deposit(accountId: string, depositDto: DepositDto) {
     await this.findActiveAccount(accountId);
 
@@ -87,60 +141,6 @@ export class AccountsService {
       }
       throw e;
     }
-  }
-
-  async findAll(query: PaginationQueryDto) {
-    const { page, limit, skip } = parsePagination(query);
-    const where = { activeFlag: true };
-
-    const [accounts, total] = await Promise.all([
-      this.prisma.account.findMany({ where, skip, take: limit }),
-      this.prisma.account.count({ where }),
-    ]);
-
-    return {
-      items: accounts,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async findOne(accountId: string) {
-    return this.findActiveAccount(accountId);
-  }
-
-  async getBalance(accountId: string) {
-    const account = await this.findActiveAccount(accountId);
-    return { accountId: account.accountId, balance: account.balance };
-  }
-
-  async update(accountId: string, updateAccountDto: UpdateAccountDto) {
-    await this.findActiveAccount(accountId);
-    const account = await this.prisma.account.update({
-      where: { accountId },
-      data: updateAccountDto,
-    });
-    return account;
-  }
-
-  async blockAccount(accountId: string) {
-    const account = await this.prisma.account.findUnique({
-      where: { accountId },
-    });
-    if (!account) {
-      throw new NotFoundException(`Account with id ${accountId} not found`);
-    }
-    if (!account.activeFlag) {
-      throw new ConflictException('Account is already blocked.');
-    }
-    return this.prisma.account.update({
-      where: { accountId },
-      data: { activeFlag: false },
-    });
   }
 
   async getStatements(accountId: string, query: StatementQueryDto) {
