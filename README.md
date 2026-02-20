@@ -156,14 +156,15 @@ erDiagram
 
 ### Key Design Decisions
 
-| Decision                    | Rationale                                                                                                                                                                  |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **DTO ↔ Entity separation** | DTOs handle validation (input) and serialization (output), while Entities map to database schema. The `@Serialize` decorator auto-transforms responses.                    |
-| **Idempotency Key**         | Every deposit/withdrawal requires a unique `idempotencyKey` to prevent duplicate transactions caused by network retries or client errors.                                  |
-| **SELECT FOR UPDATE**       | Withdrawal operations use pessimistic locking (`SELECT FOR UPDATE`) within Prisma interactive transactions to prevent race conditions on concurrent balance modifications. |
-| **Soft Delete**             | Persons use a `status` field (ACTIVE=1, INACTIVE=2, DELETED=3) instead of hard deletion, preserving referential integrity and audit trails.                                |
-| **UUID Primary Keys**       | Accounts and Transactions use UUIDs for IDs, preventing enumeration attacks and enabling distributed ID generation.                                                        |
-| **Global Exception Filter** | All exceptions (HTTP, Prisma, unknown) are caught and transformed into a consistent JSON error response format with request tracing.                                       |
+| Decision                    | Rationale                                                                                                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DTO ↔ Entity separation** | DTOs handle validation (input) and serialization (output), while Entities map to database schema. The `@Serialize` decorator auto-transforms responses.                                 |
+| **Idempotency Key**         | Every deposit/withdrawal/transfer requires a unique `idempotencyKey` to prevent duplicate transactions caused by network retries or client errors.                                      |
+| **SELECT FOR UPDATE**       | Withdrawal and transfer operations use pessimistic locking (`SELECT FOR UPDATE`) within Prisma interactive transactions to prevent race conditions on concurrent balance modifications. |
+| **Deadlock Prevention**     | Transfers lock both accounts in sorted UUID order to prevent deadlocks when concurrent A→B and B→A transfers occur simultaneously.                                                      |
+| **Soft Delete**             | Persons use a `status` field (ACTIVE=1, INACTIVE=2, DELETED=3) instead of hard deletion, preserving referential integrity and audit trails.                                             |
+| **UUID Primary Keys**       | Accounts and Transactions use UUIDs for IDs, preventing enumeration attacks and enabling distributed ID generation.                                                                     |
+| **Global Exception Filter** | All exceptions (HTTP, Prisma, unknown) are caught and transformed into a consistent JSON error response format with request tracing.                                                    |
 
 ---
 
@@ -297,28 +298,30 @@ Output:
 
 ```
 🌱 Seeding database...
-✅ Person created: John Doe (publicId: <uuid>)
-✅ Account created: <accountId> (balance: 10000)
+✅ Person created: John Doe (publicId: <uuid1>)
+✅ Account created: <accountId1> (balance: 10000)
+✅ Person created: Jane Smith (publicId: <uuid2>)
+✅ Account created: <accountId2> (balance: 5000)
 
 📋 Seed Summary:
-   Person publicId : <uuid>
-   Account ID      : <accountId>
-   Balance         : 10000
-   Daily Limit     : 5000
+   Person 1       : John Doe (<uuid1>)
+   Account 1      : <accountId1> (balance: 10000)
+   Person 2       : Jane Smith (<uuid2>)
+   Account 2      : <accountId2> (balance: 5000)
 
-🚀 You can now use these IDs to test the API!
+🚀 You can now use these IDs to test the API (including transfers!)
 ```
 
 > The seed is idempotent — you can run it multiple times safely.
 
 ### 9. Quick Start Example
 
-Use the `publicId` and `accountId` from the seed output. Replace `your-api-key` with your `.env` `API_KEY` value.
+Use the `accountId` values from the seed output. Replace `your-api-key` with your `.env` `API_KEY` value.
 
 **Deposit Funds**
 
 ```bash
-curl -s -X POST http://localhost:3000/api/accounts/<accountId>/deposit \
+curl -s -X POST http://localhost:3000/api/accounts/<accountId1>/deposit \
   -H "Content-Type: application/json" \
   -H "apiKey: your-api-key" \
   -d '{
@@ -330,7 +333,7 @@ curl -s -X POST http://localhost:3000/api/accounts/<accountId>/deposit \
 **Withdraw Funds**
 
 ```bash
-curl -s -X POST http://localhost:3000/api/accounts/<accountId>/withdraw \
+curl -s -X POST http://localhost:3000/api/accounts/<accountId1>/withdraw \
   -H "Content-Type: application/json" \
   -H "apiKey: your-api-key" \
   -d '{
@@ -339,17 +342,30 @@ curl -s -X POST http://localhost:3000/api/accounts/<accountId>/withdraw \
   }' | jq .
 ```
 
+**Transfer Between Accounts**
+
+```bash
+curl -s -X POST http://localhost:3000/api/accounts/<accountId1>/transfer \
+  -H "Content-Type: application/json" \
+  -H "apiKey: your-api-key" \
+  -d '{
+    "targetAccountId": "<accountId2>",
+    "amount": 2000,
+    "idempotencyKey": "transfer-001"
+  }' | jq .
+```
+
 **Check Balance**
 
 ```bash
-curl -s http://localhost:3000/api/accounts/<accountId>/balance \
+curl -s http://localhost:3000/api/accounts/<accountId1>/balance \
   -H "apiKey: your-api-key" | jq .
 ```
 
 **View Transaction Statements**
 
 ```bash
-curl -s "http://localhost:3000/api/accounts/<accountId>/statements?page=1&limit=10" \
+curl -s "http://localhost:3000/api/accounts/<accountId1>/statements?page=1&limit=10" \
   -H "apiKey: your-api-key" | jq .
 ```
 
@@ -420,6 +436,7 @@ curl -X POST http://localhost:3000/api/persons \
 | GET    | `/api/accounts/:accountId/balance`    | Get account balance           | API Key |
 | POST   | `/api/accounts/:accountId/deposit`    | Deposit funds                 | API Key |
 | POST   | `/api/accounts/:accountId/withdraw`   | Withdraw funds                | API Key |
+| POST   | `/api/accounts/:accountId/transfer`   | Transfer between accounts     | API Key |
 | GET    | `/api/accounts/:accountId/statements` | Get transaction history       | API Key |
 
 #### Deposit — Example
@@ -442,6 +459,19 @@ curl -X POST http://localhost:3000/api/accounts/{accountId}/withdraw \
   -H "apiKey: your-api-key" \
   -d '{
     "amount": 5000,
+    "idempotencyKey": "unique-uuid-here"
+  }'
+```
+
+#### Transfer — Example
+
+```bash
+curl -X POST http://localhost:3000/api/accounts/{sourceAccountId}/transfer \
+  -H "Content-Type: application/json" \
+  -H "apiKey: your-api-key" \
+  -d '{
+    "targetAccountId": "{targetAccountId}",
+    "amount": 2000,
     "idempotencyKey": "unique-uuid-here"
   }'
 ```
@@ -641,9 +671,9 @@ This section documents the chronological implementation phases, the key decision
 **What was implemented**:
 
 - **43 unit tests** across 7 suites: `PersonsService` (9), `AccountsService` (17), `PersonsController` (1), `AccountsController` (1), `parsePagination` (5), `getStartOfDay` (4), `AppController` (1). All services tested with mocked `PrismaService`
-- **22 E2E tests** simulating a full banking user flow: health check, API key auth, person CRUD with soft delete/reactivation, account creation, deposits with idempotency, withdrawals with balance/daily-limit validation, transaction statements, and account blocking
+- **29 E2E tests** simulating a full banking user flow: health check, API key auth, person CRUD with soft delete/reactivation, account creation, deposits with idempotency, withdrawals with balance/daily-limit validation, account-to-account transfers, transaction statements, and account blocking
 - **Bug fix**: `$queryRaw` in `withdraw()` referenced the Prisma model name `"Account"` instead of the actual PostgreSQL table `"accounts"` (mapped via `@@map`), causing P2010 errors at runtime
-- **Prisma seed** (`prisma/seed.ts`): Creates a sample person and checking account (balance: 10,000, daily limit: 5,000) for immediate API testing. Idempotent via `upsert`
+- **Prisma seed** (`prisma/seed.ts`): Creates two sample persons (John Doe, Jane Smith) with checking accounts for immediate API testing including transfers. Idempotent via `upsert`
 - **Build pipeline**: `npm run build` now runs unit tests → E2E tests → `nest build`. Added `test:all` shortcut
 - **Jest configuration**: Added `moduleNameMapper` to resolve `src/` path aliases in both unit and E2E test configs
 
@@ -688,6 +718,47 @@ npm run build
 | Common (Guards, Interceptors, Filters) | ≥ 85%     |
 | Utilities                              | 100%      |
 | **Overall**                            | **≥ 85%** |
+
+---
+
+## Known Limitations
+
+| Area                  | Current State                  | Impact                                                   |
+| --------------------- | ------------------------------ | -------------------------------------------------------- |
+| **Authentication**    | Static API Key via header      | Not suitable for multi-tenant production use             |
+| **Authorization**     | No role-based access control   | Any valid API key can access all endpoints               |
+| **Currency**          | Integer-only amounts (cents)   | No multi-currency support or decimal handling            |
+| **Logging**           | Structured JSON logging (Pino) | No centralized log aggregation configured                |
+| **Caching**           | No caching layer               | Balance queries always hit the database                  |
+| **Config Validation** | `@nestjs/config` only          | No schema validation on environment variables at startup |
+| **Monitoring**        | Health check endpoint only     | No metrics export (Prometheus, DataDog, etc.)            |
+
+---
+
+## Future Improvements
+
+### High Priority
+
+- **JWT Authentication** — Replace static API key with JWT tokens for per-user sessions and refresh token rotation
+- **Role-Based Access Control (RBAC)** — Admin vs. user roles with endpoint-level permissions
+- **Config Validation** — Use `class-validator` with `@nestjs/config` to fail fast on missing/invalid environment variables
+- **CI/CD Pipeline** — GitHub Actions for lint → test → build → Docker push on every PR
+
+### Medium Priority
+
+- **Transaction History Enrichment** — Add `description` field and reference ID linking paired transfer transactions
+- **Account Types** — Savings accounts with interest calculation, different withdrawal rules per type
+- **Pagination Cursors** — Cursor-based pagination for large transaction histories (more efficient than offset)
+- **Redis Caching** — Cache balance lookups with write-through invalidation on deposit/withdraw/transfer
+- **Rate Limiting Per Account** — Per-account rate limits in addition to global IP-based throttling
+
+### Low Priority / Nice to Have
+
+- **Webhooks** — Notify external systems on transaction events (deposit, withdrawal, transfer)
+- **Audit Log** — Immutable event log separate from transaction records for compliance
+- **Multi-Currency** — Currency field on accounts with exchange rate service integration
+- **Batch Transfers** — Bulk transfer endpoint for payroll-style operations
+- **Swagger Codegen** — Auto-generated TypeScript SDK from OpenAPI spec for client consumption
 
 ---
 
