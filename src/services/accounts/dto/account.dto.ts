@@ -1,8 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+import { AccountEntity } from '../entities/account.entity';
 import { AccountType } from 'src/common/enums/account-type.enum';
 
-export class AccountDto {
+export class AccountDto
+  implements Omit<AccountEntity, 'personId'>
+{
   @ApiProperty({
     description: 'Unique account identifier (UUID)',
     example: '550e8400-e29b-41d4-a716-446655440000',
