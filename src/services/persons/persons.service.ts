@@ -13,7 +13,7 @@ export class PersonsService {
     const person = await this.prisma.person.create({
       data: {
         ...createPersonDto,
-        birthDate: new Date(createPersonDto.birthDate),
+        status: PersonStatus.ACTIVE,
       },
     });
     return person;
