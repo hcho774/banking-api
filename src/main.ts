@@ -50,6 +50,7 @@ async function bootstrap() {
       .addApiKey({ type: 'apiKey', name: 'apiKey', in: 'header' }, 'apiKey')
       .build();
     const document = SwaggerModule.createDocument(app, config);
+    document.security = [{ apiKey: [] }];
     SwaggerModule.setup('/docs', app, document);
   }
   app.enableShutdownHooks();
