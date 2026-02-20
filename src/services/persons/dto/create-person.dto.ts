@@ -1,23 +1,24 @@
-// src/persons/dto/create-person.dto.ts
-import { OmitType } from '@nestjs/mapped-types';
-import { IsString, IsNotEmpty, IsDateString } from 'class-validator';
-import { PersonEntity } from '../entities/person.entity';
+import { IsString, IsNotEmpty, IsDate } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class CreatePersonDto extends OmitType(PersonEntity, [
-  'personId',
-] as const) {
-  @IsString()
-  @IsNotEmpty()
-  publicId: string;
-
+export class CreatePersonDto {
+  @ApiProperty({ description: 'Full name', example: 'John Doe' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
+  @ApiProperty({
+    description:
+      'Government-issued identification number (e.g. SSN, passport)',
+    example: '123-456-789',
+  })
   @IsString()
   @IsNotEmpty()
   document: string;
 
-  @IsDateString()
+  @ApiProperty({ description: 'Date of birth', example: '1990-01-01' })
+  @IsDate()
+  @Type(() => Date)
   birthDate: Date;
 }

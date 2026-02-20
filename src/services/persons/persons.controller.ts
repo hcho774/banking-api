@@ -9,13 +9,20 @@ import {
   UseGuards,
   Logger,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { PersonsService } from './persons.service';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { ApiKeyGuard } from 'src/common/guards/apiKey.guard';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { PersonResponseDto } from './dto/person-response.dto';
+import {
+  PersonListResponseDto,
+  PersonResponseDto,
+} from './dto/person-response.dto';
+import { Serialize } from 'src/common/interceptors/serialize.interceptor';
+import { PersonDto } from './dto/person.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
 @Controller('persons')
 @ApiTags('persons')
@@ -27,27 +34,54 @@ export class PersonsController {
   @Post()
   @ApiOperation({ summary: 'Create a person', operationId: 'createPerson' })
   @ApiResponse({ status: 201, type: PersonResponseDto })
-  create(@Body() createPersonDto: CreatePersonDto) {
+  @Serialize(PersonDto)
+  createPerson(@Body() createPersonDto: CreatePersonDto) {
     return this.personsService.create(createPersonDto);
   }
 
   @Get()
-  findAll() {
-    return this.personsService.findAll();
+  @ApiOperation({ summary: 'Find all persons', operationId: 'findAllPersons' })
+  @ApiResponse({ status: 200, type: PersonListResponseDto })
+  @Serialize(PersonDto)
+  findAllPersons(@Query() query: PaginationQueryDto) {
+    return this.personsService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.personsService.findOne(+id);
+  @Get(':publicId')
+  @ApiOperation({ summary: 'Find one person', operationId: 'findOnePerson' })
+  @ApiResponse({ status: 200, type: PersonResponseDto })
+  @Serialize(PersonDto)
+  findOnePerson(@Param('publicId') publicId: string) {
+    return this.personsService.findOne(publicId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePersonDto: UpdatePersonDto) {
-    return this.personsService.update(+id, updatePersonDto);
+  @Patch(':publicId')
+  @ApiOperation({ summary: 'Update a person', operationId: 'updatePerson' })
+  @ApiResponse({ status: 200, type: PersonResponseDto })
+  @Serialize(PersonDto)
+  updatePerson(
+    @Param('publicId') publicId: string,
+    @Body() updatePersonDto: UpdatePersonDto,
+  ) {
+    return this.personsService.update(publicId, updatePersonDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.personsService.remove(+id);
+  @Delete(':publicId')
+  @ApiOperation({ summary: 'Delete a person', operationId: 'deletePerson' })
+  @ApiResponse({ status: 200, type: PersonResponseDto })
+  @Serialize(PersonDto)
+  deletePerson(@Param('publicId') publicId: string) {
+    return this.personsService.remove(publicId);
+  }
+
+  @Patch(':publicId/reactivate')
+  @ApiOperation({
+    summary: 'Reactivate a deleted person',
+    operationId: 'reactivatePerson',
+  })
+  @ApiResponse({ status: 200, type: PersonResponseDto })
+  @Serialize(PersonDto)
+  reactivatePerson(@Param('publicId') publicId: string) {
+    return this.personsService.reactivate(publicId);
   }
 }
