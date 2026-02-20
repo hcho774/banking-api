@@ -1,10 +1,10 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import compression from 'compression';
-import { ClassSerializerInterceptor, VersioningType } from '@nestjs/common';
+import { VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -36,7 +36,6 @@ async function bootstrap() {
     header: 'version',
     defaultVersion: '1',
   });
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   if (app.get(ConfigService).get('NODE_ENV') !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Banking API')
