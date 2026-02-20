@@ -33,7 +33,12 @@ import { PrismaModule } from './prisma/prisma.module';
               remove: true,
             },
             serializers: {
-              err: (err) => ({
+              err: (err: {
+                id?: string;
+                type?: string;
+                message?: string;
+                stack?: string;
+              }) => ({
                 id: err.id,
                 type: err.type,
                 message: err.message,
