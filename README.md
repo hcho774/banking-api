@@ -196,10 +196,33 @@ cp .env.example .env
 | `THROTTLE_TTL`   | Rate limit time window in seconds                | `60`                                                                     |
 | `THROTTLE_LIMIT` | Max requests per time window                     | `30`                                                                     |
 
-### 3. Start PostgreSQL with Docker
+### 3. Quick Start with Docker (Recommended)
+
+Start everything with a single command — PostgreSQL, migrations, seed data, and API server:
 
 ```bash
-docker compose up -d
+docker compose up --build
+```
+
+The API will be available at `http://localhost:3000`. A sample person and account are automatically seeded (see output for IDs).
+
+To stop:
+
+```bash
+docker compose down        # keep data
+docker compose down -v     # reset data
+```
+
+> Skip to [Quick Start Example](#9-quick-start-example) to start testing immediately.
+
+---
+
+### Manual Setup (Alternative)
+
+### 4. Start PostgreSQL
+
+```bash
+docker compose up -d postgres
 ```
 
 This starts a PostgreSQL 15 (Alpine) container on port `5432` with:
