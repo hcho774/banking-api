@@ -8,6 +8,10 @@ export class CreatePersonDto extends OmitType(PersonEntity, [
 ] as const) {
   @IsString()
   @IsNotEmpty()
+  publicId: string;
+
+  @IsString()
+  @IsNotEmpty()
   name: string;
 
   @IsString()
