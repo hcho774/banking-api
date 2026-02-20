@@ -1,15 +1,52 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Logger,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
+import { DepositDto } from './dto/deposit.dto';
+import { ApiKeyGuard } from 'src/common/guards/apiKey.guard';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AccountResponseDto } from './dto/account-response.dto';
+import { Serialize } from 'src/common/interceptors/serialize.interceptor';
+import { AccountDto } from './dto/account.dto';
 
 @Controller('accounts')
+@ApiTags('accounts')
+@UseGuards(ApiKeyGuard)
 export class AccountsController {
+  private readonly logger = new Logger(AccountsController.name);
   constructor(private readonly accountsService: AccountsService) {}
 
   @Post()
-  create(@Body() createAccountDto: CreateAccountDto) {
+  @ApiOperation({ summary: 'Create an account', operationId: 'createAccount' })
+  @ApiResponse({ status: 201, type: AccountResponseDto })
+  @Serialize(AccountDto)
+  createAccount(@Body() createAccountDto: CreateAccountDto) {
     return this.accountsService.create(createAccountDto);
+  }
+
+  @Post(':accountId/deposit')
+  @ApiOperation({
+    summary: 'Deposit funds into an account',
+    operationId: 'deposit',
+  })
+  @ApiResponse({ status: 201, type: AccountResponseDto })
+  @Serialize(AccountDto)
+  deposit(
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Body() depositDto: DepositDto,
+  ) {
+    return this.accountsService.deposit(accountId, depositDto);
   }
 
   @Get()
@@ -32,3 +69,4 @@ export class AccountsController {
     return this.accountsService.remove(+id);
   }
 }
+
