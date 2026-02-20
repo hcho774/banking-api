@@ -4,16 +4,16 @@ import {
   ApiResponseDto,
   PaginatedResponseDto,
 } from 'src/common/dto/api-response.dto';
-import { PersonEntity } from '../entities/person.entity';
+import { PersonDto } from './person.dto';
 
-export class PersonResponseDto extends ApiResponseDto<PersonEntity> {
-  @ApiProperty({ type: PersonEntity })
+export class PersonResponseDto extends ApiResponseDto<PersonDto> {
+  @ApiProperty({ type: PersonDto })
   @Expose()
-  override data?: PersonEntity;
+  override data?: PersonDto;
 }
 
-export class PersonListResponseDto extends PaginatedResponseDto<PersonEntity> {
-  @ApiProperty({ type: [PersonEntity] })
+export class PersonListResponseDto extends PaginatedResponseDto<PersonDto> {
+  @ApiProperty({ type: [PersonDto] })
   @Expose()
-  override data?: PersonEntity[];
+  override data?: PersonDto[];
 }
