@@ -14,6 +14,7 @@ import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { DepositDto } from './dto/deposit.dto';
+import { WithdrawDto } from './dto/withdraw.dto';
 import { ApiKeyGuard } from 'src/common/guards/apiKey.guard';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
@@ -67,6 +68,20 @@ export class AccountsController {
     @Body() depositDto: DepositDto,
   ) {
     return this.accountsService.deposit(accountId, depositDto);
+  }
+
+  @Post(':accountId/withdraw')
+  @ApiOperation({
+    summary: 'Withdraw funds from an account',
+    operationId: 'withdraw',
+  })
+  @ApiResponse({ status: 201, type: AccountResponseDto })
+  @Serialize(AccountDto)
+  withdraw(
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Body() withdrawDto: WithdrawDto,
+  ) {
+    return this.accountsService.withdraw(accountId, withdrawDto);
   }
 
   @Get(':accountId/statements')

@@ -7,12 +7,15 @@ import {
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { DepositDto } from './dto/deposit.dto';
+import { WithdrawDto } from './dto/withdraw.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { StatementQueryDto } from './dto/statement-query.dto';
 import { parsePagination } from 'src/common/utils/pagination.util';
+import { getStartOfDay } from 'src/common/utils/date.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PersonStatus } from 'src/common/enums/person-status.enum';
 import { TransactionType } from 'src/common/enums/transaction-type.enum';
+import { TRANSACTION_OPTIONS } from 'src/common/constants/transaction.constants';
 
 @Injectable()
 export class AccountsService {
@@ -28,6 +31,15 @@ export class AccountsService {
       );
     }
     return account;
+  }
+
+  private async checkIdempotency(idempotencyKey: string) {
+    const existing = await this.prisma.transaction.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existing) {
+      throw new ConflictException('Transaction has been already completed.');
+    }
   }
 
   async create(createAccountDto: CreateAccountDto) {
@@ -108,31 +120,92 @@ export class AccountsService {
   async deposit(accountId: string, depositDto: DepositDto) {
     await this.findActiveAccount(accountId);
 
-    const existing = await this.prisma.transaction.findUnique({
-      where: { idempotencyKey: depositDto.idempotencyKey },
-    });
-    if (existing) {
-      throw new ConflictException(`Transaction has been already completed.`);
-    }
+    await this.checkIdempotency(depositDto.idempotencyKey);
 
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        await tx.transaction.create({
-          data: {
-            accountId,
-            value: depositDto.amount,
-            type: TransactionType.DEPOSIT,
-            idempotencyKey: depositDto.idempotencyKey,
-          },
-        });
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          await tx.transaction.create({
+            data: {
+              accountId,
+              value: depositDto.amount,
+              type: TransactionType.DEPOSIT,
+              idempotencyKey: depositDto.idempotencyKey,
+            },
+          });
 
-        const account = await tx.account.update({
-          where: { accountId },
-          data: { balance: { increment: depositDto.amount } },
-        });
+          const account = await tx.account.update({
+            where: { accountId },
+            data: { balance: { increment: depositDto.amount } },
+          });
 
-        return account;
-      });
+          return account;
+        },
+        TRANSACTION_OPTIONS,
+      );
+      return result;
+    } catch (e) {
+      if (e.code === 'P2002') {
+        throw new ConflictException('Transaction has been already completed.');
+      }
+      throw e;
+    }
+  }
+
+  async withdraw(accountId: string, withdrawDto: WithdrawDto) {
+    await this.findActiveAccount(accountId);
+
+    await this.checkIdempotency(withdrawDto.idempotencyKey);
+
+    try {
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const [locked] = await tx.$queryRaw<any[]>`
+          SELECT * FROM "Account"
+          WHERE "accountId" = ${accountId}
+          FOR UPDATE
+        `;
+
+          if (locked.balance < withdrawDto.amount) {
+            throw new BadRequestException('Insufficient balance.');
+          }
+
+          const startOfDay = getStartOfDay();
+
+          const todayWithdrawals = await tx.transaction.aggregate({
+            where: {
+              accountId,
+              type: TransactionType.WITHDRAWAL,
+              transactionDate: { gte: startOfDay },
+            },
+            _sum: { value: true },
+          });
+
+          const todayTotal = todayWithdrawals._sum.value ?? 0;
+          if (todayTotal + withdrawDto.amount > locked.dailyWithdrawalLimit) {
+            throw new BadRequestException(
+              `Daily withdrawal limit exceeded. Limit: ${locked.dailyWithdrawalLimit}, already withdrawn today: ${todayTotal}, requested: ${withdrawDto.amount}.`,
+            );
+          }
+
+          await tx.transaction.create({
+            data: {
+              accountId,
+              value: withdrawDto.amount,
+              type: TransactionType.WITHDRAWAL,
+              idempotencyKey: withdrawDto.idempotencyKey,
+            },
+          });
+
+          const account = await tx.account.update({
+            where: { accountId },
+            data: { balance: { decrement: withdrawDto.amount } },
+          });
+
+          return account;
+        },
+        TRANSACTION_OPTIONS,
+      );
 
       return result;
     } catch (e) {
