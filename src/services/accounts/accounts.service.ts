@@ -16,12 +16,16 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { PersonStatus } from 'src/common/enums/person-status.enum';
 import { TransactionType } from 'src/common/enums/transaction-type.enum';
 import { TRANSACTION_OPTIONS } from 'src/common/constants/transaction.constants';
+import { Account } from 'src/prisma/schema/account';
+import { Transaction } from 'src/prisma/schema/transaction';
+import { PaginatedResult } from 'src/common/interfaces/paginated-result.interface';
+import { Prisma } from 'src/prisma/prismaClient';
 
 @Injectable()
 export class AccountsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async findActiveAccount(accountId: string) {
+  private async findActiveAccount(accountId: string): Promise<Account> {
     const account = await this.prisma.account.findUnique({
       where: { accountId, activeFlag: true },
     });
@@ -33,7 +37,7 @@ export class AccountsService {
     return account;
   }
 
-  private async checkIdempotency(idempotencyKey: string) {
+  private async checkIdempotency(idempotencyKey: string): Promise<void> {
     const existing = await this.prisma.transaction.findUnique({
       where: { idempotencyKey },
     });
@@ -42,7 +46,7 @@ export class AccountsService {
     }
   }
 
-  async create(createAccountDto: CreateAccountDto) {
+  async create(createAccountDto: CreateAccountDto): Promise<Account> {
     const { personPublicId, ...accountData } = createAccountDto;
 
     const person = await this.prisma.person.findUnique({
@@ -63,7 +67,7 @@ export class AccountsService {
     return account;
   }
 
-  async findAll(query: PaginationQueryDto) {
+  async findAll(query: PaginationQueryDto): Promise<PaginatedResult<Account>> {
     const { page, limit, skip } = parsePagination(query);
     const where = { activeFlag: true };
 
@@ -83,20 +87,25 @@ export class AccountsService {
     };
   }
 
-  async findOne(accountId: string) {
+  async findOne(accountId: string): Promise<Account> {
     return this.findActiveAccount(accountId);
   }
 
-  async update(accountId: string, updateAccountDto: UpdateAccountDto) {
+  async update(
+    accountId: string,
+    updateAccountDto: UpdateAccountDto,
+  ): Promise<Account> {
     await this.findActiveAccount(accountId);
+
     const account = await this.prisma.account.update({
       where: { accountId },
       data: updateAccountDto,
     });
+
     return account;
   }
 
-  async blockAccount(accountId: string) {
+  async blockAccount(accountId: string): Promise<Account> {
     const account = await this.prisma.account.findUnique({
       where: { accountId },
     });
@@ -106,43 +115,44 @@ export class AccountsService {
     if (!account.activeFlag) {
       throw new ConflictException('Account is already blocked.');
     }
+
     return this.prisma.account.update({
       where: { accountId },
       data: { activeFlag: false },
     });
   }
 
-  async getBalance(accountId: string) {
+  async getBalance(
+    accountId: string,
+  ): Promise<{ accountId: string; balance: number }> {
     const account = await this.findActiveAccount(accountId);
+
     return { accountId: account.accountId, balance: account.balance };
   }
 
-  async deposit(accountId: string, depositDto: DepositDto) {
+  async deposit(accountId: string, depositDto: DepositDto): Promise<Account> {
     await this.findActiveAccount(accountId);
-
     await this.checkIdempotency(depositDto.idempotencyKey);
 
     try {
-      const result = await this.prisma.$transaction(
-        async (tx) => {
-          await tx.transaction.create({
-            data: {
-              accountId,
-              value: depositDto.amount,
-              type: TransactionType.DEPOSIT,
-              idempotencyKey: depositDto.idempotencyKey,
-            },
-          });
+      const result = await this.prisma.$transaction(async (tx) => {
+        await tx.transaction.create({
+          data: {
+            accountId,
+            value: depositDto.amount,
+            type: TransactionType.DEPOSIT,
+            idempotencyKey: depositDto.idempotencyKey,
+          },
+        });
 
-          const account = await tx.account.update({
-            where: { accountId },
-            data: { balance: { increment: depositDto.amount } },
-          });
+        const account = await tx.account.update({
+          where: { accountId },
+          data: { balance: { increment: depositDto.amount } },
+        });
 
-          return account;
-        },
-        TRANSACTION_OPTIONS,
-      );
+        return account;
+      }, TRANSACTION_OPTIONS);
+
       return result;
     } catch (e) {
       if (e.code === 'P2002') {
@@ -152,60 +162,59 @@ export class AccountsService {
     }
   }
 
-  async withdraw(accountId: string, withdrawDto: WithdrawDto) {
+  async withdraw(
+    accountId: string,
+    withdrawDto: WithdrawDto,
+  ): Promise<Account> {
     await this.findActiveAccount(accountId);
-
     await this.checkIdempotency(withdrawDto.idempotencyKey);
 
     try {
-      const result = await this.prisma.$transaction(
-        async (tx) => {
-          const [locked] = await tx.$queryRaw<any[]>`
+      const result = await this.prisma.$transaction(async (tx) => {
+        const [locked] = await tx.$queryRaw<any[]>`
           SELECT * FROM "Account"
           WHERE "accountId" = ${accountId}
           FOR UPDATE
         `;
 
-          if (locked.balance < withdrawDto.amount) {
-            throw new BadRequestException('Insufficient balance.');
-          }
+        if (locked.balance < withdrawDto.amount) {
+          throw new BadRequestException('Insufficient balance.');
+        }
 
-          const startOfDay = getStartOfDay();
+        const startOfDay = getStartOfDay();
 
-          const todayWithdrawals = await tx.transaction.aggregate({
-            where: {
-              accountId,
-              type: TransactionType.WITHDRAWAL,
-              transactionDate: { gte: startOfDay },
-            },
-            _sum: { value: true },
-          });
+        const todayWithdrawals = await tx.transaction.aggregate({
+          where: {
+            accountId,
+            type: TransactionType.WITHDRAWAL,
+            transactionDate: { gte: startOfDay },
+          },
+          _sum: { value: true },
+        });
 
-          const todayTotal = todayWithdrawals._sum.value ?? 0;
-          if (todayTotal + withdrawDto.amount > locked.dailyWithdrawalLimit) {
-            throw new BadRequestException(
-              `Daily withdrawal limit exceeded. Limit: ${locked.dailyWithdrawalLimit}, already withdrawn today: ${todayTotal}, requested: ${withdrawDto.amount}.`,
-            );
-          }
+        const todayTotal = todayWithdrawals._sum.value ?? 0;
+        if (todayTotal + withdrawDto.amount > locked.dailyWithdrawalLimit) {
+          throw new BadRequestException(
+            `Daily withdrawal limit exceeded. Limit: ${locked.dailyWithdrawalLimit}, already withdrawn today: ${todayTotal}, requested: ${withdrawDto.amount}.`,
+          );
+        }
 
-          await tx.transaction.create({
-            data: {
-              accountId,
-              value: withdrawDto.amount,
-              type: TransactionType.WITHDRAWAL,
-              idempotencyKey: withdrawDto.idempotencyKey,
-            },
-          });
+        await tx.transaction.create({
+          data: {
+            accountId,
+            value: withdrawDto.amount,
+            type: TransactionType.WITHDRAWAL,
+            idempotencyKey: withdrawDto.idempotencyKey,
+          },
+        });
 
-          const account = await tx.account.update({
-            where: { accountId },
-            data: { balance: { decrement: withdrawDto.amount } },
-          });
+        const account = await tx.account.update({
+          where: { accountId },
+          data: { balance: { decrement: withdrawDto.amount } },
+        });
 
-          return account;
-        },
-        TRANSACTION_OPTIONS,
-      );
+        return account;
+      }, TRANSACTION_OPTIONS);
 
       return result;
     } catch (e) {
@@ -216,17 +225,15 @@ export class AccountsService {
     }
   }
 
-  async getStatements(accountId: string, query: StatementQueryDto) {
-    const account = await this.prisma.account.findUnique({
-      where: { accountId },
-    });
-    if (!account) {
-      throw new NotFoundException(`Account with id ${accountId} not found`);
-    }
-
+  async getStatements(
+    accountId: string,
+    query: StatementQueryDto,
+  ): Promise<PaginatedResult<Transaction>> {
     const { page, limit, skip } = parsePagination(query);
 
-    const where: any = { accountId };
+    await this.findActiveAccount(accountId);
+
+    const where: Prisma.TransactionWhereInput = { accountId };
     if (query.fromDate || query.toDate) {
       where.transactionDate = {};
       if (query.fromDate) where.transactionDate.gte = query.fromDate;
