@@ -41,17 +41,6 @@ export class AccountsController {
     return this.accountsService.create(createAccountDto);
   }
 
-  @Get()
-  @ApiOperation({
-    summary: 'Find all accounts',
-    operationId: 'findAllAccounts',
-  })
-  @ApiResponse({ status: 200, type: AccountListResponseDto })
-  @Serialize(AccountDto)
-  findAllAccounts(@Query() query: PaginationQueryDto) {
-    return this.accountsService.findAll(query);
-  }
-
   @Get(':accountId/balance')
   @ApiOperation({
     summary: 'Get account balance',
@@ -61,31 +50,6 @@ export class AccountsController {
   @Serialize(BalanceDto)
   getBalance(@Param('accountId', ParseUUIDPipe) accountId: string) {
     return this.accountsService.getBalance(accountId);
-  }
-
-  @Get(':accountId')
-  @ApiOperation({
-    summary: 'Find one account',
-    operationId: 'findOneAccount',
-  })
-  @ApiResponse({ status: 200, type: AccountResponseDto })
-  @Serialize(AccountDto)
-  findOneAccount(@Param('accountId', ParseUUIDPipe) accountId: string) {
-    return this.accountsService.findOne(accountId);
-  }
-
-  @Patch(':accountId')
-  @ApiOperation({
-    summary: 'Update an account',
-    operationId: 'updateAccount',
-  })
-  @ApiResponse({ status: 200, type: AccountResponseDto })
-  @Serialize(AccountDto)
-  updateAccount(
-    @Param('accountId', ParseUUIDPipe) accountId: string,
-    @Body() updateAccountDto: UpdateAccountDto,
-  ) {
-    return this.accountsService.update(accountId, updateAccountDto);
   }
 
   @Post(':accountId/deposit')
@@ -111,5 +75,19 @@ export class AccountsController {
   @Serialize(AccountDto)
   blockAccount(@Param('accountId', ParseUUIDPipe) accountId: string) {
     return this.accountsService.blockAccount(accountId);
+  }
+
+  @Patch(':accountId')
+  @ApiOperation({
+    summary: 'Update an account',
+    operationId: 'updateAccount',
+  })
+  @ApiResponse({ status: 200, type: AccountResponseDto })
+  @Serialize(AccountDto)
+  updateAccount(
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Body() updateAccountDto: UpdateAccountDto,
+  ) {
+    return this.accountsService.update(accountId, updateAccountDto);
   }
 }
