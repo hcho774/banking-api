@@ -1,2 +1,3 @@
 # Mark config files as non-language for GitHub stats
 eslint.config.mjs linguist-vendored
+Dockerfile linguist-vendored
