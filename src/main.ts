@@ -9,6 +9,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
   app.useLogger(app.get(Logger));
   app.setGlobalPrefix('api', { exclude: ['health'] });
   app.use(
@@ -17,16 +18,21 @@ async function bootstrap() {
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
-          fontSrc: ["'self'", 'data:'],
-          imgSrc: ["'self'", 'data:'],
-          scriptSrc: ["'self'"],
+          fontSrc: ["'self'", 'data:', 'https:'],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          scriptSrc: [
+            "'self'",
+            ...(configService.get('SWAGGER_ENABLED', 'false') === 'true'
+              ? ["'unsafe-inline'"]
+              : []),
+          ],
         },
       },
     }),
   );
   app.enableCors({
     credentials: true,
-    origin: app.get(ConfigService).get('CORS_ORIGIN', '*'),
+    origin: configService.get<string>('CORS_ORIGIN', '*'),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     optionsSuccessStatus: 200,
   });
@@ -36,7 +42,7 @@ async function bootstrap() {
     header: 'version',
     defaultVersion: ['1', VERSION_NEUTRAL],
   });
-  if (app.get(ConfigService).get('NODE_ENV') !== 'production') {
+  if (configService.get('SWAGGER_ENABLED', 'false') === 'true') {
     const config = new DocumentBuilder()
       .setTitle('Banking API')
       .setDescription('Production-grade Banking REST API')
@@ -44,10 +50,10 @@ async function bootstrap() {
       .addApiKey({ type: 'apiKey', name: 'apiKey', in: 'header' }, 'apiKey')
       .build();
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, document);
+    SwaggerModule.setup('/docs', app, document);
   }
   app.enableShutdownHooks();
 
-  await app.listen(app.get(ConfigService).getOrThrow('PORT'));
+  await app.listen(configService.getOrThrow('PORT'));
 }
-bootstrap();
+void bootstrap();

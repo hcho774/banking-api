@@ -193,14 +193,15 @@ Copy the example environment file and configure it:
 cp .env.example .env
 ```
 
-| Variable         | Description                                      | Default                                                                  |
-| ---------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
-| `DATABASE_URL`   | PostgreSQL connection string                     | `postgresql://postgres:password@localhost:5432/banking_db?schema=public` |
-| `NODE_ENV`       | Environment (development / production)           | `development`                                                            |
-| `PORT`           | Server port                                      | `3000`                                                                   |
-| `API_KEY`        | API authentication key (sent in `apiKey` header) | —                                                                        |
-| `THROTTLE_TTL`   | Rate limit time window in seconds                | `60`                                                                     |
-| `THROTTLE_LIMIT` | Max requests per time window                     | `30`                                                                     |
+| Variable          | Description                                      | Default                                                                  |
+| ----------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
+| `DATABASE_URL`    | PostgreSQL connection string                     | `postgresql://postgres:password@localhost:5432/banking_db?schema=public` |
+| `NODE_ENV`        | Environment (development / production)           | `development`                                                            |
+| `PORT`            | Server port                                      | `3000`                                                                   |
+| `API_KEY`         | API authentication key (sent in `apiKey` header) | —                                                                        |
+| `THROTTLE_TTL`    | Rate limit time window in seconds                | `60`                                                                     |
+| `THROTTLE_LIMIT`  | Max requests per time window                     | `30`                                                                     |
+| `SWAGGER_ENABLED` | Enable Swagger UI at `/docs` (`true` / `false`)  | `false`                                                                  |
 
 ### 3. Quick Start with Docker (Recommended)
 
@@ -212,7 +213,28 @@ docker compose up --build
 
 The API will be available at `http://localhost:3000`. A sample person and account are automatically seeded (see output for IDs).
 
-To stop:
+#### Authentication
+
+All API endpoints (except `/health`) require the `apiKey` header. Use the value set in `docker-compose.yml`:
+
+```bash
+curl http://localhost:3000/api/persons \
+  -H "apiKey: scret-key"
+```
+
+> **Without the `apiKey` header**, requests will return `401 Unauthorized`.
+
+#### Swagger Documentation
+
+When `SWAGGER_ENABLED` is set to `'true'` (default in `docker-compose.yml`), interactive API docs are available at:
+
+```
+http://localhost:3000/docs
+```
+
+Click the **Authorize** button in Swagger UI and enter your API key to authenticate all requests.
+
+#### Stopping
 
 ```bash
 docker compose down        # keep data
@@ -284,7 +306,7 @@ Swagger UI provides interactive API documentation with:
 - "Try it out" functionality for testing
 - API Key authentication (click **Authorize** and enter your API key)
 
-> **Note**: Swagger is only available when `NODE_ENV` is not `production`.
+> **Note**: Swagger is controlled by the `SWAGGER_ENABLED` environment variable. Set it to `true` to enable.
 
 ### 8. Seed the Database
 
