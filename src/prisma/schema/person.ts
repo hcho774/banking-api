@@ -9,7 +9,7 @@ export class Person {
 
   birthDate: Date;
 
-  status: number = 1;
+  status: number;
 
   deletedAt?: Date;
 }

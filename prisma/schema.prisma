@@ -42,7 +42,7 @@ model Person {
   name      String
   document  String    @unique
   birthDate DateTime
-  status    Int       @default(1)
+  status    Int       @default(0)
   deletedAt DateTime?
   accounts  Account[]
 
