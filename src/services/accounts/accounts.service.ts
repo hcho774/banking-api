@@ -8,6 +8,7 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { DepositDto } from './dto/deposit.dto';
 import { WithdrawDto } from './dto/withdraw.dto';
+import { TransferDto } from './dto/transfer.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { StatementQueryDto } from './dto/statement-query.dto';
 import { parsePagination } from 'src/common/utils/pagination.util';
@@ -212,6 +213,102 @@ export class AccountsService {
         });
 
         return account;
+      }, TRANSACTION_OPTIONS);
+
+      return result;
+    } catch (e) {
+      if (e.code === 'P2002') {
+        throw new ConflictException('Transaction has been already completed.');
+      }
+      throw e;
+    }
+  }
+
+  async transfer(
+    sourceAccountId: string,
+    transferDto: TransferDto,
+  ): Promise<{ sourceAccount: Account; targetAccount: Account }> {
+    const { targetAccountId, amount, idempotencyKey } = transferDto;
+
+    if (sourceAccountId === targetAccountId) {
+      throw new BadRequestException('Cannot transfer to the same account.');
+    }
+
+    await this.findActiveAccount(sourceAccountId);
+    await this.findActiveAccount(targetAccountId);
+    await this.checkIdempotency(idempotencyKey);
+
+    const [firstId, secondId] =
+      sourceAccountId < targetAccountId
+        ? [sourceAccountId, targetAccountId]
+        : [targetAccountId, sourceAccountId];
+
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const [first] = await tx.$queryRaw<any[]>`
+          SELECT * FROM "accounts"
+          WHERE "accountId" = ${firstId}
+          FOR UPDATE
+        `;
+        const [second] = await tx.$queryRaw<any[]>`
+          SELECT * FROM "accounts"
+          WHERE "accountId" = ${secondId}
+          FOR UPDATE
+        `;
+
+        const source = firstId === sourceAccountId ? first : second;
+
+        if (source.balance < amount) {
+          throw new BadRequestException('Insufficient balance.');
+        }
+
+        const startOfDay = getStartOfDay();
+        const todayWithdrawals = await tx.transaction.aggregate({
+          where: {
+            accountId: sourceAccountId,
+            type: {
+              in: [TransactionType.WITHDRAWAL, TransactionType.TRANSFER],
+            },
+            transactionDate: { gte: startOfDay },
+          },
+          _sum: { value: true },
+        });
+
+        const todayTotal = todayWithdrawals._sum.value ?? 0;
+        if (todayTotal + amount > source.dailyWithdrawalLimit) {
+          throw new BadRequestException(
+            `Daily withdrawal limit exceeded. Limit: ${source.dailyWithdrawalLimit}, already withdrawn today: ${todayTotal}, requested: ${amount}.`,
+          );
+        }
+
+        await tx.transaction.createMany({
+          data: [
+            {
+              accountId: sourceAccountId,
+              value: amount,
+              type: TransactionType.TRANSFER,
+              idempotencyKey,
+            },
+            {
+              accountId: targetAccountId,
+              value: amount,
+              type: TransactionType.TRANSFER,
+              idempotencyKey: `${idempotencyKey}-credit`,
+            },
+          ],
+        });
+
+        const sourceAccount = await tx.account.update({
+          where: { accountId: sourceAccountId },
+          data: { balance: { decrement: amount } },
+        });
+
+        const targetAccount = await tx.account.update({
+          where: { accountId: targetAccountId },
+          data: { balance: { increment: amount } },
+        });
+
+        return { sourceAccount, targetAccount };
       }, TRANSACTION_OPTIONS);
 
       return result;

@@ -15,12 +15,14 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { DepositDto } from './dto/deposit.dto';
 import { WithdrawDto } from './dto/withdraw.dto';
+import { TransferDto } from './dto/transfer.dto';
 import { ApiKeyGuard } from 'src/common/guards/apiKey.guard';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   AccountResponseDto,
   AccountListResponseDto,
 } from './dto/account-response.dto';
+import { TransferResponseDto } from './dto/transfer-response.dto';
 import { BalanceResponseDto } from './dto/balance-response.dto';
 import { StatementResponseDto } from './dto/statement-response.dto';
 import { Serialize } from 'src/common/interceptors/serialize.interceptor';
@@ -98,6 +100,19 @@ export class AccountsController {
     @Body() withdrawDto: WithdrawDto,
   ) {
     return this.accountsService.withdraw(accountId, withdrawDto);
+  }
+
+  @Post(':accountId/transfer')
+  @ApiOperation({
+    summary: 'Transfer funds between accounts',
+    operationId: 'transfer',
+  })
+  @ApiResponse({ status: 201, type: TransferResponseDto })
+  transfer(
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Body() transferDto: TransferDto,
+  ) {
+    return this.accountsService.transfer(accountId, transferDto);
   }
 
   @Get(':accountId/statements')

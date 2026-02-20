@@ -12,6 +12,7 @@ describe('Banking API (e2e)', () => {
   // Shared state across ordered tests
   let personPublicId: string;
   let accountId: string;
+  let secondAccountId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -265,6 +266,75 @@ describe('Banking API (e2e)', () => {
         .set('apiKey', API_KEY)
         .send({ amount: 4000, idempotencyKey: 'e2e-withdraw-limit' })
         .expect(400);
+    });
+
+    // ── Transfer ─────────────────────────────────────────────────────
+
+    it('POST /api/accounts — should create a second account for transfer', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/accounts')
+        .set('apiKey', API_KEY)
+        .send({
+          personPublicId,
+          dailyWithdrawalLimit: 10000,
+          accountType: 1,
+          balance: 0,
+        })
+        .expect(201);
+
+      secondAccountId = res.body.data.accountId;
+    });
+
+    it('POST /api/accounts/:accountId/transfer — should transfer funds', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/api/accounts/${accountId}/transfer`)
+        .set('apiKey', API_KEY)
+        .send({
+          targetAccountId: secondAccountId,
+          amount: 3000,
+          idempotencyKey: 'e2e-transfer-1',
+        })
+        .expect(201);
+
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.sourceAccount.balance).toBe(5000); // 8000 - 3000
+      expect(res.body.data.targetAccount.balance).toBe(3000); // 0 + 3000
+    });
+
+    it('POST /api/accounts/:accountId/transfer — same account → 400', () => {
+      return request(app.getHttpServer())
+        .post(`/api/accounts/${accountId}/transfer`)
+        .set('apiKey', API_KEY)
+        .send({
+          targetAccountId: accountId,
+          amount: 1000,
+          idempotencyKey: 'e2e-transfer-self',
+        })
+        .expect(400);
+    });
+
+    it('POST /api/accounts/:accountId/transfer — insufficient balance → 400', () => {
+      return request(app.getHttpServer())
+        .post(`/api/accounts/${accountId}/transfer`)
+        .set('apiKey', API_KEY)
+        .send({
+          targetAccountId: secondAccountId,
+          amount: 999999,
+          idempotencyKey: 'e2e-transfer-huge',
+        })
+        .expect(400);
+    });
+
+    it('POST /api/accounts/:accountId/transfer — duplicate idempotency → 409', () => {
+      return request(app.getHttpServer())
+        .post(`/api/accounts/${accountId}/transfer`)
+        .set('apiKey', API_KEY)
+        .send({
+          targetAccountId: secondAccountId,
+          amount: 100,
+          idempotencyKey: 'e2e-transfer-1',
+        })
+        .expect(409);
     });
 
     // ── Statements ──────────────────────────────────────────────────
