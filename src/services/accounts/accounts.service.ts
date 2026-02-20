@@ -7,6 +7,7 @@ import {
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { DepositDto } from './dto/deposit.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PersonStatus } from 'src/common/enums/person-status.enum';
 import { TransactionType } from 'src/common/enums/transaction-type.enum';
@@ -86,19 +87,38 @@ export class AccountsService {
     }
   }
 
-  findAll() {
-    return `This action returns all accounts`;
+  async findAll(query: PaginationQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const where = { activeFlag: true };
+
+    const [accounts, total] = await Promise.all([
+      this.prisma.account.findMany({ where, skip, take: limit }),
+      this.prisma.account.count({ where }),
+    ]);
+
+    return {
+      items: accounts,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} account`;
+  async findOne(accountId: string) {
+    return this.findActiveAccount(accountId);
   }
 
-  update(id: number, updateAccountDto: UpdateAccountDto) {
-    return `This action updates a #${id} account`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} account`;
+  async update(accountId: string, updateAccountDto: UpdateAccountDto) {
+    await this.findActiveAccount(accountId);
+    const account = await this.prisma.account.update({
+      where: { accountId },
+      data: updateAccountDto,
+    });
+    return account;
   }
 }
