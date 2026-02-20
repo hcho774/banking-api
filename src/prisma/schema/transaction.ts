@@ -1,7 +1,7 @@
 export class Transaction {
-  transactionId: number;
+  transactionId: string;
 
-  accountId: number;
+  accountId: string;
 
   value: number;
 

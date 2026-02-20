@@ -1,5 +1,5 @@
 export class Account {
-  accountId: number;
+  accountId: string;
 
   personId: number;
 

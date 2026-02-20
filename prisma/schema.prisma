@@ -23,7 +23,7 @@ generator prismaClassGenerator {
 }
 
 model Account {
-  accountId            Int           @id @default(autoincrement())
+  accountId            String        @id @default(uuid())
   personId             Int
   balance              Int           @default(0)
   dailyWithdrawalLimit Int
@@ -50,8 +50,8 @@ model Person {
 }
 
 model Transaction {
-  transactionId   Int      @id @default(autoincrement())
-  accountId       Int
+  transactionId   String   @id @default(uuid())
+  accountId       String
   value           Int
   transactionDate DateTime @default(now())
   idempotencyKey  String?  @unique
