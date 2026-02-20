@@ -30,3 +30,17 @@ export class PaginatedResponseDto<T = any> extends ApiResponseDto<T[]> {
   @Expose()
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
+
+export class VoidResponseDto {
+  @ApiProperty({ example: true })
+  @Expose()
+  success: boolean;
+
+  @ApiProperty({ example: '2026-02-19T08:00:00.000Z' })
+  @Expose()
+  timestamp: string;
+
+  @ApiProperty({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  @Expose()
+  requestId: string;
+}
