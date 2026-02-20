@@ -7,7 +7,7 @@ export class Transaction {
 
   transactionDate: Date;
 
-  idempotencyKey?: string;
+  idempotencyKey: string;
 
   type: number;
 }

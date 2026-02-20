@@ -54,7 +54,7 @@ model Transaction {
   accountId       String
   value           Int
   transactionDate DateTime @default(now())
-  idempotencyKey  String?  @unique
+  idempotencyKey  String   @unique
   type            Int
   account         Account  @relation(fields: [accountId], references: [accountId])
 
