@@ -1,12 +1,17 @@
-import { Module } from '@nestjs/common';
+import {
+  ClassSerializerInterceptor,
+  Module,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { ServiceModules } from './services';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { HealthModule } from './health/health.module';
-import { PersonsModule } from './services/persons/persons.module';
-import { AccountsModule } from './accounts/accounts.module';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -54,12 +59,17 @@ import { AccountsModule } from './accounts/accounts.module';
         limit: parseInt(process.env.THROTTLE_LIMIT || '30', 10),
       },
     ]),
+    PrismaModule,
     HealthModule,
     ...ServiceModules,
-    PersonsModule,
-    AccountsModule,
   ],
   controllers: [],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
+    { provide: APP_PIPE, useClass: ValidationPipe },
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+  ],
 })
 export class AppModule {}
