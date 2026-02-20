@@ -113,6 +113,11 @@ export class AccountsService {
     return this.findActiveAccount(accountId);
   }
 
+  async getBalance(accountId: string) {
+    const account = await this.findActiveAccount(accountId);
+    return { accountId: account.accountId, balance: account.balance };
+  }
+
   async update(accountId: string, updateAccountDto: UpdateAccountDto) {
     await this.findActiveAccount(accountId);
     const account = await this.prisma.account.update({
@@ -120,5 +125,21 @@ export class AccountsService {
       data: updateAccountDto,
     });
     return account;
+  }
+
+  async blockAccount(accountId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { accountId },
+    });
+    if (!account) {
+      throw new NotFoundException(`Account with id ${accountId} not found`);
+    }
+    if (!account.activeFlag) {
+      throw new ConflictException('Account is already blocked.');
+    }
+    return this.prisma.account.update({
+      where: { accountId },
+      data: { activeFlag: false },
+    });
   }
 }

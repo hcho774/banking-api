@@ -20,8 +20,10 @@ import {
   AccountResponseDto,
   AccountListResponseDto,
 } from './dto/account-response.dto';
+import { BalanceResponseDto } from './dto/balance-response.dto';
 import { Serialize } from 'src/common/interceptors/serialize.interceptor';
 import { AccountDto } from './dto/account.dto';
+import { BalanceDto } from './dto/balance.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
 @Controller('accounts')
@@ -48,6 +50,17 @@ export class AccountsController {
   @Serialize(AccountDto)
   findAllAccounts(@Query() query: PaginationQueryDto) {
     return this.accountsService.findAll(query);
+  }
+
+  @Get(':accountId/balance')
+  @ApiOperation({
+    summary: 'Get account balance',
+    operationId: 'getBalance',
+  })
+  @ApiResponse({ status: 200, type: BalanceResponseDto })
+  @Serialize(BalanceDto)
+  getBalance(@Param('accountId', ParseUUIDPipe) accountId: string) {
+    return this.accountsService.getBalance(accountId);
   }
 
   @Get(':accountId')
@@ -87,5 +100,16 @@ export class AccountsController {
     @Body() depositDto: DepositDto,
   ) {
     return this.accountsService.deposit(accountId, depositDto);
+  }
+
+  @Patch(':accountId/block')
+  @ApiOperation({
+    summary: 'Block an account',
+    operationId: 'blockAccount',
+  })
+  @ApiResponse({ status: 200, type: AccountResponseDto })
+  @Serialize(AccountDto)
+  blockAccount(@Param('accountId', ParseUUIDPipe) accountId: string) {
+    return this.accountsService.blockAccount(accountId);
   }
 }
