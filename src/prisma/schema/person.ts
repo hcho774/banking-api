@@ -8,4 +8,8 @@ export class Person {
   document: string;
 
   birthDate: Date;
+
+  status: number = 1;
+
+  deletedAt?: Date;
 }

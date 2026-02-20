@@ -42,6 +42,8 @@ model Person {
   name      String
   document  String    @unique
   birthDate DateTime
+  status    Int       @default(1)
+  deletedAt DateTime?
   accounts  Account[]
 
   @@map("person")
