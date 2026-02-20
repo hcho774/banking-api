@@ -45,6 +45,22 @@ export class AccountsController {
     return this.accountsService.create(createAccountDto);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'List all accounts', operationId: 'findAllAccounts' })
+  @ApiResponse({ status: 200, type: AccountListResponseDto })
+  @Serialize(AccountDto)
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.accountsService.findAll(query);
+  }
+
+  @Get(':accountId')
+  @ApiOperation({ summary: 'Get account by ID', operationId: 'findOneAccount' })
+  @ApiResponse({ status: 200, type: AccountResponseDto })
+  @Serialize(AccountDto)
+  findOne(@Param('accountId', ParseUUIDPipe) accountId: string) {
+    return this.accountsService.findOne(accountId);
+  }
+
   @Get(':accountId/balance')
   @ApiOperation({
     summary: 'Get account balance',
