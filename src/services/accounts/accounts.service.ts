@@ -8,6 +8,8 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { DepositDto } from './dto/deposit.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
+import { StatementQueryDto } from './dto/statement-query.dto';
+import { parsePagination } from 'src/common/utils/pagination.util';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PersonStatus } from 'src/common/enums/person-status.enum';
 import { TransactionType } from 'src/common/enums/transaction-type.enum';
@@ -88,9 +90,7 @@ export class AccountsService {
   }
 
   async findAll(query: PaginationQueryDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(query);
     const where = { activeFlag: true };
 
     const [accounts, total] = await Promise.all([
@@ -141,5 +141,43 @@ export class AccountsService {
       where: { accountId },
       data: { activeFlag: false },
     });
+  }
+
+  async getStatements(accountId: string, query: StatementQueryDto) {
+    const account = await this.prisma.account.findUnique({
+      where: { accountId },
+    });
+    if (!account) {
+      throw new NotFoundException(`Account with id ${accountId} not found`);
+    }
+
+    const { page, limit, skip } = parsePagination(query);
+
+    const where: any = { accountId };
+    if (query.fromDate || query.toDate) {
+      where.transactionDate = {};
+      if (query.fromDate) where.transactionDate.gte = query.fromDate;
+      if (query.toDate) where.transactionDate.lte = query.toDate;
+    }
+
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { transactionDate: 'desc' },
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return {
+      items: transactions,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

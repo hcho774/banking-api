@@ -21,10 +21,13 @@ import {
   AccountListResponseDto,
 } from './dto/account-response.dto';
 import { BalanceResponseDto } from './dto/balance-response.dto';
+import { StatementResponseDto } from './dto/statement-response.dto';
 import { Serialize } from 'src/common/interceptors/serialize.interceptor';
 import { AccountDto } from './dto/account.dto';
 import { BalanceDto } from './dto/balance.dto';
+import { TransactionDto } from './dto/transaction.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
+import { StatementQueryDto } from './dto/statement-query.dto';
 
 @Controller('accounts')
 @ApiTags('accounts')
@@ -64,6 +67,20 @@ export class AccountsController {
     @Body() depositDto: DepositDto,
   ) {
     return this.accountsService.deposit(accountId, depositDto);
+  }
+
+  @Get(':accountId/statements')
+  @ApiOperation({
+    summary: 'Get account statements',
+    operationId: 'getStatements',
+  })
+  @ApiResponse({ status: 200, type: StatementResponseDto })
+  @Serialize(TransactionDto)
+  getStatements(
+    @Param('accountId', ParseUUIDPipe) accountId: string,
+    @Query() query: StatementQueryDto,
+  ) {
+    return this.accountsService.getStatements(accountId, query);
   }
 
   @Patch(':accountId/block')
