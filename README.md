@@ -219,7 +219,7 @@ All API endpoints (except `/health`) require the `apiKey` header. Use the value 
 
 ```bash
 curl http://localhost:3000/api/persons \
-  -H "apiKey: scret-key"
+  -H "apiKey: secret-key"
 ```
 
 > **Without the `apiKey` header**, requests will return `401 Unauthorized`.
