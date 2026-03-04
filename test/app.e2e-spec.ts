@@ -268,6 +268,36 @@ describe('Banking API (e2e)', () => {
         .expect(400);
     });
 
+    it('POST /api/accounts/:accountId/withdraw — should prevent race conditions on double withdrawal', async () => {
+      // Send two completely independent withdrawal requests simultaneously for a tiny amount (10)
+      const amountToWithdraw = 10;
+      
+      const [response1, response2] = await Promise.all([
+        request(app.getHttpServer())
+          .post(`/api/accounts/${accountId}/withdraw`)
+          .set('apiKey', API_KEY)
+          .send({ amount: amountToWithdraw, idempotencyKey: 'race-test-key-1' }),
+        request(app.getHttpServer())
+          .post(`/api/accounts/${accountId}/withdraw`)
+          .set('apiKey', API_KEY)
+          .send({ amount: amountToWithdraw, idempotencyKey: 'race-test-key-2' }),
+      ]);
+
+      const statuses = [response1.status, response2.status].sort();
+      
+      // Since balance is 8000 and amount is 10, both have enough balance, but because
+      // of the pessimistic lock, they process sequentially. So BOTH succeed (201).
+      // We are just verifying that they don't crash into a 500 Server Error deadlock.
+      expect(statuses).toEqual([201, 201]);
+
+      const finalBalanceRes = await request(app.getHttpServer())
+        .get(`/api/accounts/${accountId}/balance`)
+        .set('apiKey', API_KEY);
+      
+      // 8000 - 10 - 10 = 7980
+      expect(finalBalanceRes.body.data.balance).toBe(7980);
+    });
+
     // ── Transfer ─────────────────────────────────────────────────────
 
     it('POST /api/accounts — should create a second account for transfer', async () => {
@@ -291,14 +321,15 @@ describe('Banking API (e2e)', () => {
         .set('apiKey', API_KEY)
         .send({
           targetAccountId: secondAccountId,
-          amount: 3000,
-          idempotencyKey: 'e2e-transfer-1',
+          amount: 2900,
+          idempotencyKey: 'e2e-transfer-1', // Changing amount to 2900 so daily limit (5000) isn't hit
         })
         .expect(201);
 
       expect(res.body.success).toBe(true);
-      expect(res.body.data.sourceAccount.balance).toBe(5000); // 8000 - 3000
-      expect(res.body.data.targetAccount.balance).toBe(3000); // 0 + 3000
+      // 7980 - 2900 = 5080
+      expect(res.body.data.sourceAccount.balance).toBe(5080); 
+      expect(res.body.data.targetAccount.balance).toBe(2900); 
     });
 
     it('POST /api/accounts/:accountId/transfer — same account → 400', () => {
@@ -335,6 +366,43 @@ describe('Banking API (e2e)', () => {
           idempotencyKey: 'e2e-transfer-1',
         })
         .expect(409);
+    });
+
+    it('POST /api/accounts/:accountId/transfer — should prevent race conditions on double transfer', async () => {
+      // Current balances:
+      // source = 5080, target = 2900 
+      // We transfer 10 simultaneously twice to not hit limits.
+      const amountToTransfer = 10;
+      
+      const [response1, response2] = await Promise.all([
+        request(app.getHttpServer())
+          .post(`/api/accounts/${accountId}/transfer`)
+          .set('apiKey', API_KEY)
+          .send({ targetAccountId: secondAccountId, amount: amountToTransfer, idempotencyKey: 'race-transfer-key-1' }),
+        request(app.getHttpServer())
+          .post(`/api/accounts/${accountId}/transfer`)
+          .set('apiKey', API_KEY)
+          .send({ targetAccountId: secondAccountId, amount: amountToTransfer, idempotencyKey: 'race-transfer-key-2' }),
+      ]);
+
+      const statuses = [response1.status, response2.status].sort();
+      
+      // Because of the SELECT FOR UPDATE pessimistic lock on multiple tables,
+      // they should process in sequence. Both should succeed because there's plenty of balance.
+      expect(statuses).toEqual([201, 201]);
+
+      // Verify the final balances
+      // source: 5080 - 10 - 10 = 5060
+      // target: 2900 + 10 + 10 = 2920
+      const sourceBalanceRes = await request(app.getHttpServer())
+        .get(`/api/accounts/${accountId}/balance`)
+        .set('apiKey', API_KEY);
+      expect(sourceBalanceRes.body.data.balance).toBe(5060);
+
+      const targetBalanceRes = await request(app.getHttpServer())
+        .get(`/api/accounts/${secondAccountId}/balance`)
+        .set('apiKey', API_KEY);
+      expect(targetBalanceRes.body.data.balance).toBe(2920);
     });
 
     // ── Statements ──────────────────────────────────────────────────

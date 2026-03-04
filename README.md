@@ -692,8 +692,8 @@ This section documents the chronological implementation phases, the key decision
 
 **What was implemented**:
 
-- **43 unit tests** across 7 suites: `PersonsService` (9), `AccountsService` (17), `PersonsController` (1), `AccountsController` (1), `parsePagination` (5), `getStartOfDay` (4), `AppController` (1). All services tested with mocked `PrismaService`
-- **29 E2E tests** simulating a full banking user flow: health check, API key auth, person CRUD with soft delete/reactivation, account creation, deposits with idempotency, withdrawals with balance/daily-limit validation, account-to-account transfers, transaction statements, and account blocking
+- **47 unit tests** across 7 suites: `PersonsService` (9), `AccountsService` (21), `PersonsController` (1), `AccountsController` (1), `parsePagination` (5), `getStartOfDay` (4), `AppController` (1). All services tested with mocked `PrismaService`, including newly added `transfer` method tests (4 cases).
+- **31 E2E tests** simulating a full banking user flow: health check, API key auth, person CRUD with soft delete/reactivation, account creation, deposits with idempotency, withdrawals with balance/daily-limit/race-condition validation, account-to-account transfers (including concurrent double transfer prevention), transaction statements, and account blocking.
 - **Bug fix**: `$queryRaw` in `withdraw()` referenced the Prisma model name `"Account"` instead of the actual PostgreSQL table `"accounts"` (mapped via `@@map`), causing P2010 errors at runtime
 - **Prisma seed** (`prisma/seed.ts`): Creates two sample persons (John Doe, Jane Smith) with checking accounts for immediate API testing including transfers. Idempotent via `upsert`
 - **Build pipeline**: `npm run build` now runs unit tests → E2E tests → `nest build`. Added `test:all` shortcut

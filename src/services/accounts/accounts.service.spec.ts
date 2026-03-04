@@ -319,6 +319,82 @@ describe('AccountsService', () => {
     });
   });
 
+  // ─── transfer ──────────────────────────────────────────────────────
+
+  describe('transfer', () => {
+    const sourceAccount = {
+      ...mockAccount,
+      accountId: 'source-1',
+      balance: 10000,
+    };
+    const targetAccount = {
+      ...mockAccount,
+      accountId: 'target-1',
+      balance: 5000,
+    };
+
+    it('should throw BadRequestException if source and target are the same', async () => {
+      await expect(
+        service.transfer('source-1', {
+          targetAccountId: 'source-1',
+          amount: 1000,
+          idempotencyKey: 'idem-transfer-1',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if a source or target account is inactive', async () => {
+      prisma.account.findUnique.mockResolvedValueOnce(sourceAccount);
+      prisma.account.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.transfer('source-1', {
+          targetAccountId: 'nonexistent-1',
+          amount: 1000,
+          idempotencyKey: 'idem-transfer-1',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException if idempotency key already exists', async () => {
+      prisma.account.findUnique.mockResolvedValueOnce(sourceAccount);
+      prisma.account.findUnique.mockResolvedValueOnce(targetAccount);
+      prisma.transaction.findUnique.mockResolvedValue(mockTransaction);
+
+      await expect(
+        service.transfer('source-1', {
+          targetAccountId: 'target-1',
+          amount: 1000,
+          idempotencyKey: 'idem-existing-1',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should successfully transfer funds between two accounts', async () => {
+      prisma.account.findUnique.mockResolvedValueOnce(sourceAccount);
+      prisma.account.findUnique.mockResolvedValueOnce(targetAccount);
+      prisma.transaction.findUnique.mockResolvedValue(null);
+
+      const updatedSource = { ...sourceAccount, balance: 9000 };
+      const updatedTarget = { ...targetAccount, balance: 6000 };
+
+      prisma.$transaction.mockResolvedValue({
+        sourceAccount: updatedSource,
+        targetAccount: updatedTarget,
+      });
+
+      const result = await service.transfer('source-1', {
+        targetAccountId: 'target-1',
+        amount: 1000,
+        idempotencyKey: 'idem-transfer-ok',
+      });
+
+      expect(result.sourceAccount.balance).toBe(9000);
+      expect(result.targetAccount.balance).toBe(6000);
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+  });
+
   // ─── getStatements ────────────────────────────────────────────────
 
   describe('getStatements', () => {
