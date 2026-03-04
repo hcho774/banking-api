@@ -170,7 +170,7 @@ export class AccountsService {
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
-        const [locked] = await tx.$queryRaw<any[]>`
+        const [locked] = await tx.$queryRaw<Account[]>`
           SELECT * FROM "accounts"
           WHERE "accountId" = ${accountId}
           FOR UPDATE
@@ -245,12 +245,12 @@ export class AccountsService {
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
-        const [first] = await tx.$queryRaw<any[]>`
+        const [first] = await tx.$queryRaw<Account[]>`
           SELECT * FROM "accounts"
           WHERE "accountId" = ${firstId}
           FOR UPDATE
         `;
-        const [second] = await tx.$queryRaw<any[]>`
+        const [second] = await tx.$queryRaw<Account[]>`
           SELECT * FROM "accounts"
           WHERE "accountId" = ${secondId}
           FOR UPDATE
