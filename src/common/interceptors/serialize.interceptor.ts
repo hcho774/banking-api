@@ -4,13 +4,18 @@ import {
   ExecutionContext,
   CallHandler,
   Injectable,
+  Type,
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { plainToInstance } from 'class-transformer';
 
-interface ClassType<T> {
-  new (): T;
-}
+type Paginated<T> = {
+  items: T[];
+  meta: Record<string, unknown>;
+};
+
+type SerializableInput<T> = T | T[] | Paginated<T> | null | undefined;
+type SerializableOutput<T> = T | T[] | Paginated<T> | null | undefined;
 
 const SERIALIZE_OPTIONS = {
   excludeExtraneousValues: true,
@@ -19,59 +24,49 @@ const SERIALIZE_OPTIONS = {
   enableImplicitConversion: true,
 };
 
-@Injectable()
-class SerializeInterceptor<T> implements NestInterceptor<Partial<T>, T> {
-  constructor(private readonly classType: ClassType<T>) {}
+class SerializeInterceptor<T extends object>
+  implements NestInterceptor<SerializableInput<unknown>, SerializableOutput<T>>
+{
+  constructor(private readonly classType: Type<T>) {}
 
-  private serialize(data: any): any {
+  private serialize(data: object | object[]): T | T[] {
     return plainToInstance(this.classType, data, SERIALIZE_OPTIONS);
   }
 
-  private transform(data: any): any {
-    if (data === null || data === undefined) return data;
+  private isPaginated(value: unknown): value is Paginated<object> {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'items' in value &&
+      Array.isArray((value as { items: unknown }).items)
+    );
+  }
 
-    // Array → serialize each item
+  private transform(data: SerializableInput<object>): SerializableOutput<T> {
+    if (data == null) return data;
+
     if (Array.isArray(data)) {
       return this.serialize(data);
     }
 
-    // Paginated { items, meta } → serialize items, keep meta
-    if (data.items && Array.isArray(data.items)) {
+    if (this.isPaginated(data)) {
       return {
         ...data,
-        items: this.serialize(data.items),
+        items: this.serialize(data.items) as T[],
       };
     }
 
-    // Single object
     return this.serialize(data);
   }
 
   intercept(
-    context: ExecutionContext,
-    next: CallHandler<Partial<T>>,
-  ): Observable<T> {
+    _context: ExecutionContext,
+    next: CallHandler<SerializableInput<object>>,
+  ): Observable<SerializableOutput<T>> {
     return next.handle().pipe(map((data) => this.transform(data)));
   }
 }
 
-/**
- * Decorator to serialize response data into a DTO class.
- * Handles all response structures:
- *
- * @example
- * // Single item → PersonDto
- * @Serialize(PersonDto)
- * findOne() { return this.service.findOne(id); }
- *
- * // Array → PersonDto[]
- * @Serialize(PersonDto)
- * findAll() { return this.service.findAll(); }
- *
- * // Paginated { items, meta } → { items: PersonDto[], meta }
- * @Serialize(PersonDto)
- * findAll() { return { items: [...], meta: { total, page, limit } }; }
- */
-export function Serialize(classType: any) {
-  return UseInterceptors(new SerializeInterceptor(classType));
+export function Serialize<T extends object>(classType: Type<T>) {
+  return UseInterceptors(new SerializeInterceptor<T>(classType));
 }
