@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 
-export class ApiResponseDto<T = any> {
+export class ApiResponseDto<T = unknown> {
   @ApiProperty({ example: true })
   @Expose()
   success: boolean;
@@ -19,7 +19,7 @@ export class ApiResponseDto<T = any> {
   requestId: string;
 }
 
-export class PaginatedResponseDto<T = any> extends ApiResponseDto<T[]> {
+export class PaginatedResponseDto<T = unknown> extends ApiResponseDto<T[]> {
   @ApiPropertyOptional()
   @Expose()
   override data?: T[];
