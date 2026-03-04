@@ -8,7 +8,7 @@ import { Observable, map } from 'rxjs';
 
 @Injectable()
 export class TransformInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
     const requestId =
       request.id || (request.headers['x-request-id'] as string) || null;
