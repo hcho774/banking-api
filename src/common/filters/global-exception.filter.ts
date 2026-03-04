@@ -19,9 +19,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
-    let details: any = undefined;
+    let details: unknown = undefined;
 
-    // NestJS HttpException (includes ValidationPipe errors)
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
       message = exception.message;
@@ -32,19 +31,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         errorResponse !== null &&
         'message' in errorResponse
       ) {
-        const msgs = (errorResponse as any).message;
+        const msgs = (errorResponse as { message: unknown }).message;
         if (Array.isArray(msgs)) {
           details = msgs;
         }
       }
     }
-
-    // Prisma errors (checking by constructor name to avoid import issues)
     else if (
       exception instanceof Error &&
       exception.constructor.name === 'PrismaClientKnownRequestError'
     ) {
-      const prismaError = exception as any;
+      const prismaError = exception as unknown as { code: string; meta?: { target?: string[] } };
       switch (prismaError.code) {
         case 'P2002': // Unique constraint
           statusCode = HttpStatus.CONFLICT;
@@ -80,11 +77,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         code: HttpStatus[statusCode] || 'UNKNOWN_ERROR',
         message,
         statusCode,
-        ...(details && { details }),
+        ...(details != null ? { details } : {}),
       },
       timestamp: new Date().toISOString(),
       requestId:
-        (request as any).id ||
+        (request as Request & { id?: string }).id ||
         (request.headers['x-request-id'] as string) ||
         null,
     });
