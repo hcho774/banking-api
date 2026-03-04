@@ -238,7 +238,7 @@ describe('AccountsService', () => {
       prisma.account.findUnique.mockResolvedValue(mockAccount);
       prisma.transaction.findUnique.mockResolvedValue(null);
       const p2002Error = new Error('Unique constraint');
-      (p2002Error as any).code = 'P2002';
+      (p2002Error as unknown as { code: string }).code = 'P2002';
       prisma.$transaction.mockRejectedValue(p2002Error);
 
       await expect(
@@ -294,7 +294,7 @@ describe('AccountsService', () => {
       prisma.account.findUnique.mockResolvedValue(mockAccount);
       prisma.transaction.findUnique.mockResolvedValue(null);
       const p2002Error = new Error('Unique constraint');
-      (p2002Error as any).code = 'P2002';
+      (p2002Error as unknown as { code: string }).code = 'P2002';
       prisma.$transaction.mockRejectedValue(p2002Error);
 
       await expect(
