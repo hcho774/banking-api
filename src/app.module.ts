@@ -60,7 +60,7 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     ThrottlerModule.forRoot([
       {
-        ttl: parseInt(process.env.THROTTLE_TTL || '60', 10) * 1000, // ms 단위
+        ttl: parseInt(process.env.THROTTLE_TTL || '60', 10) * 1000,
         limit: parseInt(process.env.THROTTLE_LIMIT || '30', 10),
       },
     ]),
