@@ -71,7 +71,6 @@ import { PrismaModule } from './prisma/prisma.module';
   controllers: [],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor },
     {
       provide: APP_PIPE,
       useValue: new ValidationPipe({
