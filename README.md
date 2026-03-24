@@ -199,7 +199,7 @@ cp .env.example .env
 | `NODE_ENV`        | Environment (development / production)           | `development`                                                            |
 | `PORT`            | Server port                                      | `3000`                                                                   |
 | `API_KEY`         | API authentication key (sent in `apiKey` header) | —                                                                        |
-| `THROTTLE_TTL`    | Rate limit time window in seconds                | `60`                                                                     |
+| `THROTTLE_TTL_MS` | Rate limit time window in milliseconds           | `60000`                                                                  |
 | `THROTTLE_LIMIT`  | Max requests per time window                     | `30`                                                                     |
 | `SWAGGER_ENABLED` | Enable Swagger UI at `/docs` (`true` / `false`)  | `false`                                                                  |
 
