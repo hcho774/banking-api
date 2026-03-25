@@ -8,21 +8,16 @@ import {
   Delete,
   UseGuards,
   Logger,
-  UseInterceptors,
   Query,
 } from '@nestjs/common';
 import { PersonsService } from './persons.service';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { ApiKeyGuard } from 'src/common/guards/apiKey.guard';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import {
-  PersonListResponseDto,
-  PersonResponseDto,
-} from './dto/person-response.dto';
-import { Serialize } from 'src/common/interceptors/serialize.interceptor';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PersonDto } from './dto/person.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
+import { ApiSerializedResponse } from 'src/common/decorators/api-serialized-response.decorator';
 
 @Controller('persons')
 @ApiTags('persons')
@@ -33,32 +28,41 @@ export class PersonsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a person', operationId: 'createPerson' })
-  @ApiResponse({ status: 201, type: PersonResponseDto })
-  @Serialize(PersonDto)
+  @ApiSerializedResponse({
+    status: 201,
+    dataType: PersonDto,
+  })
   createPerson(@Body() createPersonDto: CreatePersonDto) {
     return this.personsService.create(createPersonDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Find all persons', operationId: 'findAllPersons' })
-  @ApiResponse({ status: 200, type: PersonListResponseDto })
-  @Serialize(PersonDto)
+  @ApiSerializedResponse({
+    status: 200,
+    dataType: PersonDto,
+    paginated: true,
+  })
   findAllPersons(@Query() query: PaginationQueryDto) {
     return this.personsService.findAll(query);
   }
 
   @Get(':publicId')
   @ApiOperation({ summary: 'Find one person', operationId: 'findOnePerson' })
-  @ApiResponse({ status: 200, type: PersonResponseDto })
-  @Serialize(PersonDto)
+  @ApiSerializedResponse({
+    status: 200,
+    dataType: PersonDto,
+  })
   findOnePerson(@Param('publicId') publicId: string) {
     return this.personsService.findOne(publicId);
   }
 
   @Patch(':publicId')
   @ApiOperation({ summary: 'Update a person', operationId: 'updatePerson' })
-  @ApiResponse({ status: 200, type: PersonResponseDto })
-  @Serialize(PersonDto)
+  @ApiSerializedResponse({
+    status: 200,
+    dataType: PersonDto,
+  })
   updatePerson(
     @Param('publicId') publicId: string,
     @Body() updatePersonDto: UpdatePersonDto,
@@ -68,8 +72,10 @@ export class PersonsController {
 
   @Delete(':publicId')
   @ApiOperation({ summary: 'Delete a person', operationId: 'deletePerson' })
-  @ApiResponse({ status: 200, type: PersonResponseDto })
-  @Serialize(PersonDto)
+  @ApiSerializedResponse({
+    status: 200,
+    dataType: PersonDto,
+  })
   deletePerson(@Param('publicId') publicId: string) {
     return this.personsService.remove(publicId);
   }
@@ -79,8 +85,10 @@ export class PersonsController {
     summary: 'Reactivate a deleted person',
     operationId: 'reactivatePerson',
   })
-  @ApiResponse({ status: 200, type: PersonResponseDto })
-  @Serialize(PersonDto)
+  @ApiSerializedResponse({
+    status: 200,
+    dataType: PersonDto,
+  })
   reactivatePerson(@Param('publicId') publicId: string) {
     return this.personsService.reactivate(publicId);
   }

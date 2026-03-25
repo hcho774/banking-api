@@ -59,7 +59,7 @@ import { PrismaModule } from './prisma/prisma.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => [
         {
-          ttl: Number(config.get('THROTTLE_TTL_MS', 60_000)),
+          ttl: Number(config.get('THROTTLE_TTL_MS', 60000)),
           limit: Number(config.get('THROTTLE_LIMIT', 30)),
         },
       ],

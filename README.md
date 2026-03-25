@@ -43,7 +43,7 @@ banking-api/
 ├── src/
 │   ├── common/
 │   │   ├── constants/       # Shared constants (transaction options)
-│   │   ├── decorators/      # Custom decorators (@Mask)
+│   │   ├── decorators/      # Custom decorators (@Mask, @ApiSerializedResponse)
 │   │   ├── dto/             # Shared DTOs (PaginationQueryDto)
 │   │   ├── enums/           # Enums (PersonStatus, AccountType, TransactionType)
 │   │   ├── filters/         # GlobalExceptionFilter
@@ -442,7 +442,9 @@ curl -X POST http://localhost:3000/api/persons \
     "document": "123.456.789-00",
     "birthDate": "1990-01-15T00:00:00.000Z",
     "status": "ACTIVE"
-  }
+  },
+  "timestamp": "2026-02-20T07:00:00.000Z",
+  "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
@@ -510,23 +512,22 @@ curl "http://localhost:3000/api/accounts/{accountId}/statements?page=1&limit=10&
 ```json
 {
   "success": true,
-  "data": {
-    "items": [
-      {
-        "transactionId": "...",
-        "value": 10000,
-        "transactionDate": "2026-02-20T07:00:00.000Z",
-        "idempotencyKey": "...",
-        "type": "DEPOSIT"
-      }
-    ],
-    "meta": {
-      "total": 1,
-      "page": 1,
-      "limit": 10,
-      "totalPages": 1
+  "data": [
+    {
+      "transactionId": "...",
+      "value": 10000,
+      "transactionDate": "2026-02-20T07:00:00.000Z",
+      "type": "DEPOSIT"
     }
-  }
+  ],
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  },
+  "timestamp": "2026-02-20T07:00:00.000Z",
+  "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
